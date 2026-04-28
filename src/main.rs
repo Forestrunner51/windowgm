@@ -16,7 +16,16 @@ fn main() {
             TnuaControllerPlugin::<ControlScheme>::new(FixedUpdate),
             TnuaAvian3dPlugin::new(FixedUpdate),
         ))
-        .add_systems(Startup, (setup, setup_player))
+        .init_resource::<Mug>()
+        .add_systems(
+            Startup,
+            (
+                setup,
+                setup_level,
+                setup_player,
+                (load_mug, spawn_mug).chain(),
+            ),
+        )
         .add_systems(Update, apply_controls.in_set(TnuaUserControlsSystems))
         .run();
 }
@@ -26,6 +35,12 @@ fn main() {
 enum ControlScheme {
     Crouch(TnuaBuiltinCrouch),
 }
+
+#[derive(Resource, Default)]
+struct Mug {
+    scene: Handle<Scene>,
+}
+
 /// set up a simple 3D scene
 fn setup(
     mut commands: Commands,
@@ -56,6 +71,30 @@ fn setup(
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
+}
+fn setup_level(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    commands.spawn((
+        Mesh3d(meshes.add(Plane3d::default().mesh().size(128.0, 128.0))),
+        MeshMaterial3d(materials.add(Color::WHITE)),
+        RigidBody::Static,
+        Collider::half_space(Vec3::Y),
+    ));
+}
+
+fn load_mug(mut bevy_image: ResMut<Mug>, asset_server: Res<AssetServer>) {
+    info!("Loading ambulance glb scene");
+    bevy_image.scene = asset_server.load(GltfAssetLabel::Scene(0).from_asset("plastic_chair.glb"));
+}
+
+fn spawn_mug(bevy_image: Res<Mug>, mut commands: Commands) {
+    commands.spawn((
+        SceneRoot(bevy_image.scene.clone()),
+        Transform::from_xyz(5.0, 1.0, 0.),
     ));
 }
 
