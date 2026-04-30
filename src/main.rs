@@ -17,16 +17,12 @@ fn main() {
             TnuaAvian3dPlugin::new(FixedUpdate),
         ))
         .init_resource::<Mug>()
+        .init_resource::<MugSpawned>()
+        .add_systems(Startup, (setup, setup_level, setup_player, load_mug))
         .add_systems(
-            Startup,
-            (
-                setup,
-                setup_level,
-                setup_player,
-                (load_mug, spawn_mug).chain(),
-            ),
+            Update,
+            (apply_controls.in_set(TnuaUserControlsSystems), spawn_mug),
         )
-        .add_systems(Update, apply_controls.in_set(TnuaUserControlsSystems))
         .run();
 }
 
@@ -41,12 +37,18 @@ struct Mug {
     scene: Handle<Scene>,
 }
 
+#[derive(Resource, Default)]
+struct MugSpawned(bool);
 /// set up a simple 3D scene
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    commands.spawn(AmbientLight {
+        brightness: 1000.0,
+        ..default()
+    });
     // circular base
     commands.spawn((
         Mesh3d(meshes.add(Circle::new(4.0))),
@@ -57,7 +59,7 @@ fn setup(
     commands.spawn((
         Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
         MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
-        Transform::from_xyz(0.0, 0.5, 0.0),
+        Transform::from_xyz(3.0, 0.5, 0.0),
     ));
     // light
     commands.spawn((
@@ -70,7 +72,7 @@ fn setup(
     // camera
     commands.spawn((
         Camera3d::default(),
-        Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(0.0, 7.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 }
 fn setup_level(
@@ -88,13 +90,14 @@ fn setup_level(
 
 fn load_mug(mut bevy_image: ResMut<Mug>, asset_server: Res<AssetServer>) {
     info!("Loading ambulance glb scene");
-    bevy_image.scene = asset_server.load(GltfAssetLabel::Scene(0).from_asset("plastic_chair.glb"));
+    bevy_image.scene =
+        asset_server.load(GltfAssetLabel::Scene(0).from_asset("monoblockplasticgarden.glb"));
 }
 
 fn spawn_mug(bevy_image: Res<Mug>, mut commands: Commands) {
     commands.spawn((
         SceneRoot(bevy_image.scene.clone()),
-        Transform::from_xyz(5.0, 1.0, 0.),
+        Transform::from_xyz(0.0, 1.0, 0.).with_scale(Vec3::splat(1.0)),
     ));
 }
 
@@ -110,7 +113,7 @@ fn setup_player(
             half_length: 0.5,
         })),
         MeshMaterial3d(materials.add(Color::from(css::DARK_CYAN))),
-        Transform::from_xyz(0.0, 2.0, 0.0),
+        Transform::from_xyz(4.0, 2.0, 0.0),
         // The player character needs to be configured as a dynamic rigid body of the physics
         // engine.
         RigidBody::Dynamic,
